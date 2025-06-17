@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/missions.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/missions", "dest": "api/missions.js" }
+  ]
+}

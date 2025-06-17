@@ -1,19 +1,40 @@
-import { promises as fs } from "fs";
+import fs from "fs-extra";
 import path from "path";
 
+const dbPath = path.resolve("data", "db.json");
+
 export default async function handler(req, res) {
-  const filePath = path.join(process.cwd(), "data", "db.json");
-  const jsonData = await fs.readFile(filePath, "utf8");
-  const data = JSON.parse(jsonData);
+  await fs.ensureFile(dbPath);
+  let db = await fs.readJson(dbPath).catch(() => ({ missions: [] }));
 
   if (req.method === "GET") {
-    res.status(200).json(data.missions);
-  } else if (req.method === "POST") {
-    const newMission = { id: Date.now(), ...req.body };
-    data.missions.push(newMission);
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-    res.status(201).json(newMission);
-  } else {
-    res.status(405).json({ message: "Only GET and POST methods allowed" });
+    return res.status(200).json(db.missions);
   }
+
+  if (req.method === "POST") {
+    const newMission = req.body;
+    newMission.id = Date.now();
+    db.missions.push(newMission);
+    await fs.writeJson(dbPath, db);
+    return res.status(201).json(newMission);
+  }
+
+  if (req.method === "DELETE") {
+    const { id } = req.query;
+    db.missions = db.missions.filter((m) => m.id !== parseInt(id));
+    await fs.writeJson(dbPath, db);
+    return res.status(200).json({ success: true });
+  }
+
+  if (req.method === "PUT") {
+    const { id } = req.query;
+    const updatedMission = req.body;
+    db.missions = db.missions.map((m) =>
+      m.id === parseInt(id) ? { ...m, ...updatedMission } : m
+    );
+    await fs.writeJson(dbPath, db);
+    return res.status(200).json({ success: true });
+  }
+
+  res.status(405).json({ error: "Method not allowed" });
 }
